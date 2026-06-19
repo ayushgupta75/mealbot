@@ -1,0 +1,7 @@
+langchain-anthropic
+langgraph
+python-dotenv
+# voice dependencies (only needed with --voice flag)
+mlx-whisper
+sounddevice
+numpy
