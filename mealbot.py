@@ -1,10 +1,36 @@
 import argparse
+from typing import Callable
 
 from dotenv import load_dotenv
 
-from agent import build_agent
+from agent import build_graph
+from intake_agent import intake_complete
 
+# Load ANTHROPIC_API_KEY from .env
 load_dotenv()
+
+EXIT_WORDS = {"end", "quit", "bye", "goodbye"}
+
+
+def make_io(voice: bool) -> tuple[Callable[[], str], Callable[[str], None]]:
+    """Return (get_input, send_output) functions for voice or text mode."""
+    if voice:
+        from voice import listen, speak
+
+        def get_input() -> str:
+            return listen()
+
+        def send_output(text: str) -> None:
+            print(f"Bot: {text}\n")
+            speak(text)
+    else:
+        def get_input() -> str:
+            return input("You: ").strip()
+
+        def send_output(text: str) -> None:
+            print(f"Bot: {text}\n")
+
+    return get_input, send_output
 
 
 def main() -> None:
@@ -12,52 +38,34 @@ def main() -> None:
     parser.add_argument("--voice", action="store_true", help="Enable voice input/output")
     args = parser.parse_args()
 
-    if args.voice:
-        from voice import listen, speak
+    get_input, send_output = make_io(args.voice)
+    graph, config = build_graph()
 
-    graph, config = build_agent()
-
+    # Greet the user
     welcome = "Welcome to Mealbot! What would you like to order today?"
-    print(welcome)
-    if args.voice:
-        speak(welcome)
-    else:
+    send_output(welcome)
+    if not args.voice:
         print("(Type 'bye' to exit)\n")
 
+    # Conversation loop — each iteration is one user turn
     while True:
         try:
-            if args.voice:
-                user_input = listen()
-            else:
-                user_input = input("You: ").strip()
+            user_input = get_input()
         except (KeyboardInterrupt, EOFError):
-            goodbye = "Goodbye!"
-            print(f"\n{goodbye}")
-            if args.voice:
-                speak(goodbye)
+            send_output("Goodbye!")
             break
 
         if not user_input:
             continue
 
-        if user_input.strip(".,!?").lower() in {"end", "quit", "bye", "goodbye"}:
-            goodbye = "Goodbye! Have a great day!"
-            print(f"Bot: {goodbye}\n")
-            if args.voice:
-                speak(goodbye)
+        if user_input.strip(".,!?").lower() in EXIT_WORDS:
+            send_output("Goodbye! Have a great day!")
             break
 
         result = graph.invoke({"messages": [("user", user_input)]}, config)
-        reply = result["messages"][-1].content
-        print(f"Bot: {reply}\n")
-        if args.voice:
-            speak(reply)
+        send_output(result["messages"][-1].content)
 
-        order_placed = any(
-            getattr(m, "name", None) == "send_order"
-            for m in result["messages"]
-        )
-        if order_placed:
+        if intake_complete(result):
             break
 
 
