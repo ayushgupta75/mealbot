@@ -12,16 +12,8 @@ def build_fulfillment_agent(model: LanguageModelLike):
     agent = create_react_agent(model, tools=[send_order], prompt=FULFILLMENT_PROMPT)
 
     def fulfillment_node(state: State) -> dict:
-        # Extract order from save_order_details_to_graph tool call args in messages
-        order = None
-        for msg in reversed(state["messages"]):
-            if hasattr(msg, "tool_calls"):
-                for tc in msg.tool_calls:
-                    if tc["name"] == "save_order_details_to_graph":
-                        order = tc["args"]
-                        break
-            if order:
-                break
+        # Set by the save_order_details_to_graph tool (via graph=Command.PARENT)
+        order = state["order"]
 
         result = agent.invoke({
             "messages": [HumanMessage(content=f"Place this order:\n{order}")]

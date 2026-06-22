@@ -9,6 +9,8 @@ import numpy as np
 import sounddevice as sd
 import mlx_whisper
 
+from menu import menu_item_names
+
 SAMPLE_RATE = 16000
 CHUNK_DURATION = 0.3        # seconds per recorded chunk
 SILENCE_THRESHOLD = 0.01    # RMS below this is considered silence
@@ -16,11 +18,8 @@ SILENCE_CUTOFF = 1.5        # seconds of silence before stopping
 
 _MLX_MODEL = "mlx-community/whisper-large-v3-turbo"
 
-_WHISPER_PROMPT = (
-    "The user is ordering food. Menu: Steamed Rice, Dal Makhani, Shahi Paneer, "
-    "Butter Paneer Masala, Chana Masala, Palak Paneer, Garlic Naan, Butter Roti, "
-    "Mango Lassi, Gulab Jamun."
-)
+# Bias transcription toward the menu vocabulary so item names come through cleanly.
+_WHISPER_PROMPT = "The user is ordering food. Menu: " + ", ".join(menu_item_names()) + "."
 
 
 def listen() -> str:
