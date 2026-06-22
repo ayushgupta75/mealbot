@@ -21,6 +21,10 @@ def save_order_details_to_graph(
         special_instructions: Any special instructions from the customer.
     """
     return Command(
+        # graph=Command.PARENT propagates the update to the outer StateGraph;
+        # without it the order stays in the intake react-agent's inner state
+        # and never reaches the fulfillment node.
+        graph=Command.PARENT,
         update={
             "order": {
                 "items": items,
