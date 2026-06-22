@@ -28,7 +28,9 @@ python -m pytest            # whole suite
 python -m pytest tests/test_tools.py::test_send_order_persists_and_returns_receipt  # one test
 ```
 
-Tests avoid the live model: routing/handoff use fake messages, and the order store runs against a temp SQLite file (the `temp_orders_db` fixture sets `ORDERS_DB_PATH`).
+The suite is fully offline — no model or network calls. Routing/handoff are tested on plain state dicts, and the order store runs against a temp SQLite file (the `temp_orders_db` fixture sets `ORDERS_DB_PATH`).
+
+Testing tools that use `InjectedState` / `InjectedToolCallId` (the cart tools and `save_order_details_to_graph`): call `tool.func(...)` directly and pass the injected args yourself (e.g. `add_to_cart.func(name=..., quantity=..., state={"cart": [...]}, tool_call_id="t")`). Plain `tool.invoke({...})` won't work — it expects the framework to inject `state`/`tool_call_id`.
 
 Optional environment variables:
 - `ORDER_WEBHOOK_URL` — if set, each placed order is also POSTed here as JSON (best-effort; failures are logged, not fatal).
