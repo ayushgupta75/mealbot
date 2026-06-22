@@ -8,11 +8,8 @@ from state import State
 
 
 def route_after_intake(state: State) -> str:
-    """Route to fulfillment if save_order_details_to_graph was called this turn, else END."""
-    for msg in reversed(state["messages"]):
-        if getattr(msg, "name", None) == "save_order_details_to_graph":
-            return "fulfillment"
-    return END
+    """Route to fulfillment once the order has been confirmed (snapshotted to state), else END."""
+    return "fulfillment" if state.get("order") else END
 
 
 def build_graph() -> tuple:

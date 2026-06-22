@@ -42,19 +42,25 @@ Python CLI with two cooperating LangGraph agents. Orders persist to a local SQLi
 Builds a `StateGraph` with two nodes — `intake` and `fulfillment` — connected by a conditional edge. Compiled with `MemorySaver` and a fixed `thread_id` so conversation history persists across REPL turns within a single run.
 
 ### Shared state (`state.py`)
-`State` TypedDict with `messages` (full conversation history, merged via `add_messages`) and `order` (confirmed order dict, set by the intake tool).
+`State` TypedDict with `messages` (history, merged via `add_messages`), `cart` (in-progress line items, replaced wholesale on each edit), and `order` (the cart snapshot taken at confirmation; its presence is what routes to fulfillment).
 
 ### Menu (`menu.json` + `menu.py`)
-The menu is data, not prose. `menu.json` holds each item's `name`, `price`, and `tags`. `menu.py` loads it once and is the single source consumed by the intake prompt (`format_menu_for_prompt`) and the voice transcription hint (`menu_item_names`) — edit the menu in one place, not three.
+The menu is data, not prose. `menu.json` holds each item's `name`, `price`, and `tags` (dietary: `veg`/`vegan`/`contains-dairy`/`contains-gluten`/`mild`, plus a category). `menu.py` loads it once and is the single source consumed by the intake prompt (`format_menu_for_prompt`), the menu-query tool, and the voice transcription hint (`menu_item_names`).
 
 ### Intake agent (`intake_agent.py`)
-`create_react_agent` with two tools: `fetch_last_order` (reorder lookup) and `save_order_details_to_graph` (handoff). Collects items, quantity, and spice level (1–5). When the customer asks for "the usual"/"same as last time", it calls `fetch_last_order`, reads the result back, and only hands off after explicit confirmation.
+`create_react_agent` (state schema extended to `IntakeState` so the cart is in scope) with tools: `query_menu`, `fetch_last_order`, the cart tools, and `save_order_details_to_graph`. Built on a model bound with `parallel_tool_calls=False` — cart tools each replace the whole cart, so two writes in one step would collide on the state channel and read stale state; one tool per step keeps every edit reading the latest cart.
+
+### Menu query tool (`menu_query.py`)
+`query_menu(dietary=[...], max_price=...)` filters `menu.json` by dietary tags and/or price so the agent answers "what's vegan / under $5 / not spicy?" from data instead of reasoning over the prompt. Stateless; AND-combines filters; returns an error string for an unknown filter.
+
+### Cart tools (`cart.py`)
+`add_to_cart` / `update_cart_item` / `remove_from_cart` / `view_cart` build `state["cart"]`. They read the current cart via `InjectedState` and return a `Command` that replaces it (no `graph=Command.PARENT` — the cart lives in the agent's own state and round-trips to the outer graph when the node returns). Prices are looked up from the menu here, not supplied by the model, and `cart_total` is the running total. Each tool validates (on-menu, positive integer quantity, spice 1–5) and returns a plain `ToolMessage` rejection on bad input, leaving the cart unchanged.
 
 ### `save_order_details_to_graph` tool (`save_order_details_to_graph.py`)
-Returns `Command(graph=Command.PARENT, update={"order": {...}, "messages": [ToolMessage(...)]})`. `graph=Command.PARENT` is critical: it propagates the update to the outer `StateGraph` so the fulfillment node can read `state["order"]`, rather than leaving it in the intake react-agent's inner state. The `ToolMessage` is also required — LangGraph rejects a tool call that has no matching tool response.
+Confirmation/handoff. Reads the cart from `InjectedState` and snapshots it into `order` (so the total is the cart's, never re-derived by the model), returning `Command(graph=Command.PARENT, update={"order": {...}, "messages": [ToolMessage(...)]})`. `graph=Command.PARENT` both propagates `order` to the outer graph and ends the intake agent (the handoff). An empty cart returns a rejection without `graph=PARENT`, so intake continues.
 
 ### Fulfillment agent (`fulfillment_agent.py`)
-Reads `state["order"]` directly (set by the intake tool above), then invokes a `create_react_agent` with `send_order` as its tool. Designed to stay an agent because more tools will be added later.
+Reads `state["order"]` directly, then invokes a `create_react_agent` with `send_order` as its tool. Designed to stay an agent because more tools will be added later.
 
 ### `send_order` tool (`send_order.py`)
 The actual dispatch: first calls `validate_order` (rejects and returns an error string without persisting if the order is bad), then persists via `orders_store.save_order` (getting a row id), best-effort POSTs to `ORDER_WEBHOOK_URL` if set (5s timeout, 3 attempts with backoff), then prints the ORDER PLACED block.
@@ -69,10 +75,10 @@ SQLite (`sqlite3`, stdlib) wrapper over the `orders` table. `save_order(...)` in
 Read-only tool for the intake agent. Returns the customer's most recent order (items, total, instructions, timestamp) or a "no previous orders" message. Informational only — it does not place anything.
 
 ### Entry point (`mealbot.py`)
-REPL loop. `make_io(voice)` returns `get_input` / `send_output` callables that abstract voice vs text. Loop exits when `intake_complete()` detects `save_order_details_to_graph` in the result messages.
+REPL loop. `make_io(voice)` returns `get_input` / `send_output` callables that abstract voice vs text. Loop exits when `intake_complete()` sees `order` set in the result state.
 
 ### Routing logic
-After the intake node runs, `route_after_intake` checks if `save_order_details_to_graph` appears in messages. If yes → fulfillment node. If no → END (wait for next user message).
+After the intake node runs, `route_after_intake` routes to fulfillment iff `state["order"]` is set (i.e. the cart was confirmed), else END (wait for the next user message). Keying on `order` rather than message contents keeps routing robust to how tool messages are named.
 
 ### Voice mode (`voice.py`)
 `listen()` records from the mic until ~1.5s of silence, then transcribes with `mlx-whisper` (Apple Silicon only). `speak()` uses the macOS `say` command and supports barge-in: it monitors the mic while speaking and kills playback the moment the user starts talking.

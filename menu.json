@@ -1,12 +1,12 @@
 [
-  { "name": "Steamed Rice",          "price": 10, "tags": ["main", "veg", "vegan"] },
-  { "name": "Dal Makhani",           "price": 10, "tags": ["main", "veg", "contains-dairy"] },
-  { "name": "Shahi Paneer",          "price": 10, "tags": ["main", "veg", "contains-dairy"] },
-  { "name": "Butter Paneer Masala",  "price": 10, "tags": ["main", "veg", "contains-dairy"] },
+  { "name": "Steamed Rice",          "price": 10, "tags": ["main", "veg", "vegan", "mild"] },
+  { "name": "Dal Makhani",           "price": 10, "tags": ["main", "veg", "contains-dairy", "mild"] },
+  { "name": "Shahi Paneer",          "price": 10, "tags": ["main", "veg", "contains-dairy", "mild"] },
+  { "name": "Butter Paneer Masala",  "price": 10, "tags": ["main", "veg", "contains-dairy", "mild"] },
   { "name": "Chana Masala",          "price": 10, "tags": ["main", "veg", "vegan"] },
-  { "name": "Palak Paneer",          "price": 10, "tags": ["main", "veg", "contains-dairy"] },
-  { "name": "Garlic Naan",           "price": 4,  "tags": ["bread", "veg", "contains-dairy"] },
-  { "name": "Butter Roti",           "price": 3,  "tags": ["bread", "veg", "contains-dairy"] },
-  { "name": "Mango Lassi",           "price": 5,  "tags": ["drink", "veg", "contains-dairy"] },
-  { "name": "Gulab Jamun (2 pcs)",   "price": 6,  "tags": ["dessert", "veg", "contains-dairy"] }
+  { "name": "Palak Paneer",          "price": 10, "tags": ["main", "veg", "contains-dairy", "mild"] },
+  { "name": "Garlic Naan",           "price": 4,  "tags": ["bread", "veg", "contains-dairy", "contains-gluten", "mild"] },
+  { "name": "Butter Roti",           "price": 3,  "tags": ["bread", "veg", "contains-dairy", "contains-gluten", "mild"] },
+  { "name": "Mango Lassi",           "price": 5,  "tags": ["drink", "veg", "contains-dairy", "mild"] },
+  { "name": "Gulab Jamun (2 pcs)",   "price": 6,  "tags": ["dessert", "veg", "contains-dairy", "contains-gluten", "mild"] }
 ]

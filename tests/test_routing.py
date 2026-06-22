@@ -1,41 +1,32 @@
 """Outer-graph routing and the REPL exit condition.
 
-Both decide control flow purely from message metadata, so they're tested with
-lightweight fakes rather than the live model.
+Both decide control flow from whether an order has been confirmed into state,
+so they're tested directly rather than through the live model.
 """
 
-from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
 from langgraph.graph import END
 
 from agent import route_after_intake
 from intake_agent import intake_complete
 
-
-def _saved_order_message():
-    return ToolMessage("Order saved.", name="save_order_details_to_graph", tool_call_id="call-1")
+_AN_ORDER = {"items": [{"name": "Garlic Naan", "quantity": 1, "price": 4}], "total": 4}
 
 
-def test_route_to_fulfillment_when_order_saved():
-    state = {"messages": [HumanMessage("two naan please"), _saved_order_message()]}
-    assert route_after_intake(state) == "fulfillment"
+def test_route_to_fulfillment_when_order_confirmed():
+    assert route_after_intake({"order": _AN_ORDER}) == "fulfillment"
 
 
-def test_route_to_end_when_order_not_saved():
-    state = {"messages": [HumanMessage("hi"), AIMessage("What would you like?")]}
-    assert route_after_intake(state) == END
+def test_route_to_end_when_no_order():
+    assert route_after_intake({"order": None}) == END
 
 
-def test_intake_complete_detects_saved_order():
-    assert intake_complete({"messages": [_saved_order_message()]}) is True
+def test_route_to_end_when_order_absent():
+    assert route_after_intake({}) == END
 
 
-def test_intake_complete_false_without_saved_order():
-    assert intake_complete({"messages": [AIMessage("How spicy, 1 to 5?")]}) is False
+def test_intake_complete_true_with_order():
+    assert intake_complete({"order": _AN_ORDER}) is True
 
 
-def test_route_to_end_on_empty_messages():
-    assert route_after_intake({"messages": []}) == END
-
-
-def test_intake_complete_false_on_empty_messages():
-    assert intake_complete({"messages": []}) is False
+def test_intake_complete_false_without_order():
+    assert intake_complete({"order": None}) is False

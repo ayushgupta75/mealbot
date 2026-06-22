@@ -13,27 +13,29 @@ from save_order_details_to_graph import save_order_details_to_graph
 from send_order import send_order
 
 
-def test_save_order_details_propagates_to_parent_graph():
-    # InjectedToolCallId means the tool must be invoked with a full ToolCall;
-    # the tool_call_id is taken from the call's "id", not from args.
-    command = save_order_details_to_graph.invoke(
-        {
-            "name": "save_order_details_to_graph",
-            "args": {
-                "items": [{"name": "Chana Masala", "quantity": 1, "price": 10, "spice_level": 4}],
-                "total": 10.0,
-            },
-            "id": "call-1",
-            "type": "tool_call",
-        }
+def test_save_order_details_snapshots_cart_to_parent_graph():
+    # Confirmation reads the cart from injected state; call the func directly so we
+    # can supply the injected args (state, tool_call_id).
+    cart = [{"name": "Chana Masala", "quantity": 1, "spice_level": 4, "price": 10}]
+    command = save_order_details_to_graph.func(
+        state={"cart": cart}, tool_call_id="call-1", special_instructions="no onions"
     )
 
     assert isinstance(command, Command)
     # Without graph=PARENT the order would never reach the fulfillment node.
     assert command.graph == Command.PARENT
-    assert command.update["order"]["total"] == 10.0
+    assert command.update["order"]["total"] == 10
+    assert command.update["order"]["items"] == cart
+    assert command.update["order"]["special_instructions"] == "no onions"
     # Every tool call needs a matching ToolMessage or LangGraph rejects the turn.
     assert any(isinstance(m, ToolMessage) for m in command.update["messages"])
+
+
+def test_save_order_details_rejects_empty_cart():
+    command = save_order_details_to_graph.func(state={"cart": []}, tool_call_id="call-1")
+    # Empty cart: stays in intake (no handoff), sets no order.
+    assert command.graph is None
+    assert "order" not in command.update
 
 
 def test_send_order_persists_and_returns_receipt(temp_orders_db):
