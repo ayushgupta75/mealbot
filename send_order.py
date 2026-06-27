@@ -24,7 +24,6 @@ def _post_to_webhook(payload: dict) -> None:
     Webhook delivery is best-effort: the order is already persisted, so a failed
     POST is logged and swallowed rather than failing the whole order.
     """
-    print(payload)
     url = os.environ.get("ORDER_WEBHOOK_URL")
     if not url:
         return
