@@ -19,7 +19,7 @@ def build_graph() -> tuple:
     graph_builder = StateGraph(State)
     graph_builder.add_node("intake", build_intake_agent(model))
     graph_builder.add_node("fulfillment", build_fulfillment_agent(model))
-    
+
     graph_builder.add_edge(START, "intake")
     graph_builder.add_conditional_edges("intake", route_after_intake)
     graph_builder.add_edge("fulfillment", END)
