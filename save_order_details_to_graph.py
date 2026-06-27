@@ -28,15 +28,7 @@ def save_order_details_to_graph(
             update={"messages": [ToolMessage("The cart is empty — nothing to place.", tool_call_id=tool_call_id)]}
         )
 
-    items = [
-        {
-            "name": line["name"],
-            "quantity": line["quantity"],
-            "spice_level": line["spice_level"],
-            "price": line["price"],
-        }
-        for line in cart
-    ]
+    items = [dict(line) for line in cart]
     return Command(
         # graph=Command.PARENT propagates the order to the outer StateGraph (so the
         # fulfillment node sees it) and ends the intake agent — this is the handoff.

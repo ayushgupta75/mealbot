@@ -79,11 +79,18 @@ Read-only tool for the intake agent. Returns the customer's most recent order (i
 ### Entry point (`mealbot.py`)
 REPL loop. `make_io(voice)` returns `get_input` / `send_output` callables that abstract voice vs text. Loop exits when `intake_complete()` sees `order` set in the result state.
 
+### Prompts (`prompts.py`)
+`INTAKE_PROMPT` and `FULFILLMENT_PROMPT` — the system prompts that govern each agent's behavior. `INTAKE_PROMPT` embeds the live menu via `format_menu_for_prompt()` and encodes the ordering rules (ask quantity/spice, read back the cart before confirming, never tally prices itself). Change agent behavior here, not in the agent builders.
+
 ### Routing logic
 After the intake node runs, `route_after_intake` routes to fulfillment iff `state["order"]` is set (i.e. the cart was confirmed), else END (wait for the next user message). Keying on `order` rather than message contents keeps routing robust to how tool messages are named.
 
 ### Voice mode (`voice.py`)
 `listen()` records from the mic until ~1.5s of silence, then transcribes with `mlx-whisper` (Apple Silicon only). `speak()` uses the macOS `say` command and supports barge-in: it monitors the mic while speaking and kills playback the moment the user starts talking.
+
+## Related docs
+- `PROJECT_GUIDE.md` — deeper architecture walkthrough, design-decision rationale, and the (not-yet-built) Vapi + Twilio phone-call design.
+- `BACKLOG.md` — queued work, lead item being the voice-call integration.
 
 ## Key constraint
 Model is always `claude-sonnet-4-6`. Do not change it.
